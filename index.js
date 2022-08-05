@@ -28,6 +28,13 @@ app.use(
         extended: true,
     })
 );
+
+app.use((req, res, next)=> {
+    res.setHeader('Access-Control-Allow-Origin',
+    '*');
+    next();
+});
+
 //
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
