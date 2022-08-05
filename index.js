@@ -5,11 +5,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
 const db = require("./config/dbconn");
-const {
-    genSalt,
-    compare,
-    hash
-} = require("bcrypt");
+const { genSalt, compare, hash } = require("bcrypt");
 const jwt = require("jsonwebtoken");
 // Express app
 const app = express();
@@ -20,11 +16,7 @@ const port = parseInt(process.env.Port) || 4000;
 //
 const secret = process.env.SecretKey;
 //
-app.use(
-    router,
-    cors(),
-    express.json(),
-    express.urlencoded({
+app.use(router, cors(), express.json(), express.urlencoded({
         extended: true,
     })
 );
@@ -35,15 +27,26 @@ app.use((req, res, next)=> {
     next();
 });
 
+
 //
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
-//
-router.get("/", (req, res) => { 
-    res.send("this should be the home page");
+
+// home
+router.get('/', (req, res)=> {
+    res.status(200).sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
+//register
+router.get('/register', (req, res)=> {
+    res.status(200).sendFile(path.join(__dirname, 'views', 'register.html'));
+});
+
+//login
+router.get('/login', (req, res)=> {
+    res.status(200).sendFile(path.join(__dirname, 'views', 'login.html'));
+});
 
 
 // emailer system
@@ -74,33 +77,37 @@ router.post("/sendmail", async (req, res) => {
 });
 
 // User registration
-router.post("/register", bodyParser.json(), async (req, res) => {
-    const bd = req.body;
-    // Encrypting a password
-    // Default genSalt() is 10
-    bd.userpassword = await hash(bd.userpassword, 10);
-    // Query
-    const strQry = `
-    INSERT INTO users(firstname, lastname, gender, address, email, userpassword)
-    VALUES(?, ?, ?, ?, ?, ?);
-    `;
-    //
-    db.query(
-        strQry,
-        [
-            bd.firstname,
-            bd.lastname,
-            bd.gender,
-            bd.address,
-            bd.email,
-            bd.userpassword,
-        ],
-        (err, results) => {
-            if (err) throw err;
-            res.send(`number of affected row/s: ${results.affectedRows}`);
+router.post('/register', bodyParser.json(),(req, res)=>{
+    let emails = `SELECT email FROM users WHERE ?`;
+    let email = {
+        email: req.body.email
+    }
+    db.query(emails, email, async(err, results)=>{
+        if(err) throw err
+        // VALIDATION
+        if (results.length > 0) {
+            res.send("The provided email exists. Please enter another one");
+            
+        } else {
+            const bd = req.body;
+            let generateSalt = await genSalt();
+            bd.userpassword = await hash(bd.userpassword, generateSalt);
+            // Query
+            const strQry = 
+            `
+            INSERT INTO users(firstname, lastname, gender, email, userpassword)
+            VALUES(?, ?, ?, ?, ?);
+            `;
+            //
+            db.query(strQry, 
+                [bd.firstname, bd.lastname, bd.gender, bd.email, bd.userpassword],
+                (err, results)=> {
+                    if(err) throw err;
+                    res.send(`number of affected row/s: ${results.affectedRows}`);
+                })
         }
-    );
-});
+    })
+})
 
 
 // Login
